@@ -4,15 +4,26 @@ if (Meteor.isClient) {
 
   Template.body.helpers({
     tasks: function () {
-      return Tasks.find({});
+      //Collection.find(notsure, options)
+      return Tasks.find({}, {sort: {createdAt: -1}});
     }
   });
 
   Template.body.events({
+    "click .toggle-checked": function () {
+      Tasks.update(this._id, {
+        $set: {checked: !this.checked}
+      })
+    },
+
+    "click .delete": function () {
+      Tasks.remove(this._id);
+    },
+    
     "submit .new-task": function (e) {
       e.preventDefault();
 
-      //event.target.inputName.value
+      //event.target.htmlname.value
       var text = e.target.text.value
 
       //property: value
