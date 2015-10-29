@@ -4,37 +4,47 @@ if (Meteor.isClient) {
 
   Template.body.helpers({
     tasks: function () {
-      //Collection.find(notsure, options)
-      return Tasks.find({}, {sort: {createdAt: -1}});
+      if (Session.get("hideCompleted")) {
+        var options = {checked: {$ne: true}};
+      } else {
+        var options = {};
+      }
+      return Tasks.find(options, {sort: {createdAt: -1}})
+    },
+    hideCompleted: function () {
+      return Session.get("hideCompleted")
+    },
+    incompleteCount: function () {
+      return Tasks.find({checked: {$ne: true}}).count();
     }
   });
 
   Template.body.events({
     "click .toggle-checked": function () {
-      Tasks.update(this._id, {
-        $set: {checked: !this.checked}
-      })
+      Meteor.call("setChecked", this._id, !this.checked);
     },
 
     "click .delete": function () {
-      Tasks.remove(this._id);
+      Meteor.call("deleteTask", this._id)
     },
-    
+
     "submit .new-task": function (e) {
       e.preventDefault();
-
       //event.target.htmlname.value
       var text = e.target.text.value
-
-      //property: value
-      Tasks.insert({
-        text: text,
-        createdAt: new Date()
-      });
+      Meteor.call("addTask", text);
       //Clear form
       e.target.text.value = "";
+    },
+
+    "change .hide-completed input": function (e) {
+      Session.set("hideCompleted", e.target.checked);
     }
-  })
+  });
+
+  Accounts.ui.config({
+    passwordSignupFields: "USERNAME_ONLY"
+  });
 }
 
 if (Meteor.isServer) {
@@ -42,3 +52,26 @@ if (Meteor.isServer) {
     // code to run on server at startup
   });
 }
+
+Meteor.methods({
+  addTask: function (text) {
+    if (!Meteor.userId()) {
+      throw new Meteor.Error("not-authorized");
+    }
+
+    Tasks.insert({
+      text: text,
+      createdAt: new Date(),
+      owner: Meteor.userId(),
+      username: Meteor.user().username
+    });
+  },
+
+  deleteTask: function (taskId) {
+    Tasks.remove(taskId);
+  },
+
+  setChecked: function (taskId, setChecked) {
+    Tasks.update(taskId, { $set: { checked: setChecked} });
+  }
+})
